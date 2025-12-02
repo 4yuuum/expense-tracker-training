@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支出記録アプリ - Expense Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ヘッダーセクション -->
+    <header class="header">
+        <div class="container">
+            <h1 class="header__title">💰 支出記録アプリ</h1>
+            <div class="header__actions">
+                <button class="btn btn--secondary" id="exportBtn" aria-label="データをエクスポート">📥 エクスポート</button>
+                <button class="btn btn--secondary" id="importBtn" aria-label="データをインポート">📤 インポート</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="main">
+        <div class="container">
+            <!-- 統計セクション -->
+            <section class="stats-section">
+                <div class="stats-card">
+                    <h2 class="stats-card__title">今月の合計支出</h2>
+                    <p class="stats-card__amount" id="monthlyTotal">¥0</p>
+                </div>
+                <div class="stats-card">
+                    <h2 class="stats-card__title">今年の合計支出</h2>
+                    <p class="stats-card__amount" id="yearlyTotal">¥0</p>
+                </div>
+                <div class="stats-card">
+                    <h2 class="stats-card__title">平均日次支出</h2>
+                    <p class="stats-card__amount" id="averageDaily">¥0</p>
+                </div>
+            </section>
+
+            <!-- フィルタリング・ソートセクション -->
+            <section class="filter-section">
+                <div class="filter-group">
+                    <label for="dateFrom" class="filter-label">開始日</label>
+                    <input type="date" id="dateFrom" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label for="dateTo" class="filter-label">終了日</label>
+                    <input type="date" id="dateTo" class="filter-input">
+                </div>
+                <div class="filter-group">
+                    <label for="categoryFilter" class="filter-label">カテゴリ</label>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="">すべて</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="amountMin" class="filter-label">最小金額</label>
+                    <input type="number" id="amountMin" class="filter-input" placeholder="0" min="0">
+                </div>
+                <div class="filter-group">
+                    <label for="amountMax" class="filter-label">最大金額</label>
+                    <input type="number" id="amountMax" class="filter-input" placeholder="999999" min="0">
+                </div>
+                <div class="filter-group">
+                    <label for="searchMemo" class="filter-label">メモ検索</label>
+                    <input type="text" id="searchMemo" class="filter-input" placeholder="キーワードを入力">
+                </div>
+                <div class="filter-group">
+                    <label for="sortBy" class="filter-label">並び順</label>
+                    <select id="sortBy" class="filter-select">
+                        <option value="date-desc">日付（新しい順）</option>
+                        <option value="date-asc">日付（古い順）</option>
+                        <option value="amount-desc">金額（高い順）</option>
+                        <option value="amount-asc">金額（低い順）</option>
+                        <option value="category-asc">カテゴリ（あいうえお順）</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <button class="btn btn--primary" id="clearFiltersBtn">フィルタをクリア</button>
+                </div>
+            </section>
+
+            <!-- 支出一覧セクション -->
+            <section class="expense-section">
+                <div class="expense-header">
+                    <h2 class="expense-header__title">支出一覧</h2>
+                    <div class="expense-header__info">
+                        <span id="expenseCount">0件の支出</span>
+                        <span id="filteredTotal">合計: ¥0</span>
+                    </div>
+                </div>
+                
+                <!-- 支出一覧テーブル -->
+                <div class="table-wrapper">
+                    <table class="expense-table" id="expenseTable">
+                        <thead>
+                            <tr>
+                                <th>日付</th>
+                                <th>カテゴリ</th>
+                                <th>金額</th>
+                                <th>メモ</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseTableBody">
+                            <!-- 動的に生成される -->
+                        </tbody>
+                    </table>
+                    <!-- データが存在しない場合のメッセージ -->
+                    <div class="empty-message" id="emptyMessage" style="display: none;">
+                        <p>支出が登録されていません。<br>「支出を追加」ボタンから追加してください。</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- カテゴリ別統計セクション -->
+            <section class="category-stats-section">
+                <h2 class="section-title">カテゴリ別支出</h2>
+                <div class="category-stats" id="categoryStats">
+                    <!-- 動的に生成される -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <button class="btn btn--primary btn--large" id="addExpenseBtn" aria-label="支出を追加">
+            ➕ 支出を追加
+        </button>
+    </footer>
+
+    <!-- モーダルダイアログ（支出追加・編集） -->
+    <div class="modal" id="expenseModal" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+        <div class="modal__overlay"></div>
+        <div class="modal__content">
+            <div class="modal__header">
+                <h2 id="modalTitle" class="modal__title">支出を追加</h2>
+                <button class="modal__close" id="closeModalBtn" aria-label="閉じる">&times;</button>
+            </div>
+            <form id="expenseForm" class="expense-form">
+                <!-- バリデーションエラーメッセージ表示エリア -->
+                <div class="form-error" id="formError" role="alert"></div>
+
+                <!-- 日付入力 -->
+                <div class="form-group">
+                    <label for="expenseDate" class="form-label">
+                        日付 <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="date" 
+                        id="expenseDate" 
+                        class="form-input" 
+                        required
+                        aria-required="true"
+                    >
+                </div>
+
+                <!-- カテゴリ選択 -->
+                <div class="form-group">
+                    <label for="expenseCategory" class="form-label">
+                        カテゴリ <span class="required">*</span>
+                    </label>
+                    <select 
+                        id="expenseCategory" 
+                        class="form-select" 
+                        required
+                        aria-required="true"
+                    >
+                        <option value="">選択してください</option>
+                    </select>
+                </div>
+
+                <!-- 金額入力 -->
+                <div class="form-group">
+                    <label for="expenseAmount" class="form-label">
+                        金額 <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="number" 
+                        id="expenseAmount" 
+                        class="form-input" 
+                        min="1" 
+                        step="1"
+                        placeholder="0"
+                        required
+                        aria-required="true"
+                    >
+                </div>
+
+                <!-- メモ入力 -->
+                <div class="form-group">
+                    <label for="expenseMemo" class="form-label">メモ</label>
+                    <textarea 
+                        id="expenseMemo" 
+                        class="form-textarea" 
+                        rows="3" 
+                        maxlength="200"
+                        placeholder="支出に関する補足情報（任意）"
+                    ></textarea>
+                    <span class="form-hint">最大200文字</span>
+                </div>
+
+                <!-- フォームボタン -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn--secondary" id="cancelBtn">キャンセル</button>
+                    <button type="submit" class="btn btn--primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 削除確認モーダル -->
+    <div class="modal" id="deleteModal" role="dialog" aria-labelledby="deleteModalTitle" aria-hidden="true">
+        <div class="modal__overlay"></div>
+        <div class="modal__content modal__content--small">
+            <div class="modal__header">
+                <h2 id="deleteModalTitle" class="modal__title">削除確認</h2>
+            </div>
+            <div class="modal__body">
+                <p>この支出を削除してもよろしいですか？</p>
+                <p class="delete-info" id="deleteInfo"></p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn--secondary" id="cancelDeleteBtn">キャンセル</button>
+                <button type="button" class="btn btn--danger" id="confirmDeleteBtn">削除</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
+
