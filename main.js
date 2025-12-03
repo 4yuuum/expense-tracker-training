@@ -822,22 +822,6 @@ function init() {
         document.getElementById('sortBy').value = 'date-desc';
         refreshUI();
     });
-    
-    // エクスポートボタン
-    document.getElementById('exportBtn').addEventListener('click', exportData);
-    
-    // インポートボタン
-    document.getElementById('importBtn').addEventListener('click', () => {
-        document.getElementById('importFile').click();
-    });
-    
-    document.getElementById('importFile').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            importData(file);
-            e.target.value = ''; // リセット
-        }
-    });
 }
 
 // DOMContentLoaded時に初期化
@@ -847,3 +831,39 @@ if (document.readyState === 'loading') {
     init();
 }
 
+
+// 追加分ここから
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHe24aV44cu7xG7Ch27qOP9LKE3uNS9SIoG-7grt5fCaJytOwt3s7K3BGtSGnsIWKx/exec";  // GAS Web App URL
+const SECRET = "abcdabcd1234"; // GAS と同じ値
+
+async function syncToSheet() {
+    const data = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        let value = localStorage.getItem(key);
+        try { value = JSON.parse(value); } catch(e) {}
+        data[key] = value;
+    }
+
+    try {
+        const result = await fetch(SCRIPT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain" },  // ← プリフライトを防ぐ
+            body: JSON.stringify({ secret: SECRET, data: data })
+        });
+
+        const json = await result.json();
+
+        if (json.ok) {
+            alert("スプレッドシートに同期しました！");
+        } else {
+            alert("エラー: " + json.error);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("通信エラーが発生しました。");
+    }
+}
+
+// ボタンにイベントを設定（DOM はすでに読み込まれている想定）
+document.getElementById("syncButton").addEventListener("click", syncToSheet);
